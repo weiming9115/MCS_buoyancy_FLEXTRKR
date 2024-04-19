@@ -22,7 +22,7 @@ from metpy.calc import thermo
 from metpy.units import units
 
 # importing theta_calc module
-sys.path.append('/neelin2020/mcs_flextrkr/scripts/modules') 
+sys.path.append('/neelin/mcs_flextrkr/scripts/modules') 
 from theta_e_calc_mod import *
 
 import warnings
@@ -44,7 +44,7 @@ def get_mcs_mask(track_number, phase_list):
         day = timestamp_str[8:10]
         hour = timestamp_str[11:13]
 
-        mask_data = xr.open_dataset('/neelin2020/mcs_flextrkr/{}0101.0000_{}0101.0000/mcstrack_{}{}{}_{}30.nc'.format(year
+        mask_data = xr.open_dataset('/neelin/mcs_flextrkr/{}0101.0000_{}0101.0000/mcstrack_{}{}{}_{}30.nc'.format(year
                                                                                 ,int(year)+1,year,month,day,hour))
         mcsnumber = data_non2mcs_complete.sel(tracks=track_number).tracks.values
         mask_sub = mask_data.cloudtracknumber_nomergesplit.isel(time=0)
@@ -63,7 +63,7 @@ def get_mcs_mask(track_number, phase_list):
         
         mask_sub_phase.append(mask_sub_xy)
         
-    mask_sub_phase_xr = xr.concat(mask_sub_phase, dim=pd.Index(['Init','Grow','Mature','Decay','End'], name='mcs_phase'))
+    mask_sub_phase_xr = xr.concat(mask_sub_phase, dim=pd.Index(['CCS','Init','Grow','Mature','Decay','End'], name='mcs_phase'))
     
     return mask_sub_phase_xr
 
@@ -102,7 +102,7 @@ def get_pr_estimates(track_number, phase_list):
         pr_sub_xy = pr_sub_xy.swap_dims({'longitude':'x', 'latitude': 'y'}).drop(['time','longitude','latitude'])
         
         # 2. get GPM-IMERG 
-        gpm_data = xr.open_dataset('/neelin2020/RGMA_feature_mask/GPM_ncfiles_{}/GPM_IMERGE_V06_{}{}{}_{}00.nc'.format(
+        gpm_data = xr.open_dataset('/neelin/RGMA_feature_mask/GPM_ncfiles_{}/GPM_IMERGE_V06_{}{}{}_{}00.nc'.format(
                                     year, year, month, day, hour))
         gpm_data = gpm_data.sel(time=timestamp_phase, method='nearest')
         gpm_sub = gpm_data.precipitationCal.sel(lon=slice(meanlon-5,meanlon+5), lat=slice(meanlat-5,meanlat+5))
@@ -121,7 +121,7 @@ def get_pr_estimates(track_number, phase_list):
         
         pr_sub_merge_phase.append(pr_sub_merge_xy)
         
-    pr_sub_merge_phase_xr = xr.concat(pr_sub_merge_phase, dim=pd.Index(['Init','Grow','Mature','Decay','End']
+    pr_sub_merge_phase_xr = xr.concat(pr_sub_merge_phase, dim=pd.Index(['CCS','Init','Grow','Mature','Decay','End']
                                                                    , name='mcs_phase')).drop_vars(['tracks','times'])
     
     return pr_sub_merge_phase_xr
@@ -162,7 +162,7 @@ def get_2dera5_estimates(track_number, name, var_name, phase_list):
         
         var2d_sub_phase.append(data_sub_xy)
         
-    var2d_sub_phase_xr = xr.concat(var2d_sub_phase, dim=pd.Index(['Init','Grow','Mature','Decay','End']
+    var2d_sub_phase_xr = xr.concat(var2d_sub_phase, dim=pd.Index(['CCS','Init','Grow','Mature','Decay','End']
                                                                    , name='mcs_phase')).drop_vars(['tracks','times'])
     
     return var2d_sub_phase_xr
@@ -189,7 +189,7 @@ def get_3dera5_estimates(track_number, name, var_name, phase_list):
         day = timestamp_str[8:10]
         hour = timestamp_str[11:13]
      
-        # 1. get ERA-5 precip. mtpr
+        # 1. get ERA-5 3d vars
         data = xr.open_dataset(dir_era5 / '{}/era-5.{}.{}.{}.nc'.format(year,name,year,month))
        
         data = data.reindex(latitude=list(reversed(data.latitude))) # reverse latitude order
@@ -204,7 +204,7 @@ def get_3dera5_estimates(track_number, name, var_name, phase_list):
         
         var3d_sub_phase.append(data_sub_xy)
         
-    var3d_sub_phase_xr = xr.concat(var3d_sub_phase, dim=pd.Index(['Init','Grow','Mature','Decay','End']
+    var3d_sub_phase_xr = xr.concat(var3d_sub_phase, dim=pd.Index(['CCS','Init','Grow','Mature','Decay','End']
                                                                    , name='mcs_phase')).drop_vars(['tracks','times'])
     
     return var3d_sub_phase_xr
@@ -232,7 +232,7 @@ def get_tb_estimates(track_number, phase_list):
         hour = timestamp_str[11:13]
         
         # 1. get regridded MERGE-IR 0.25-deg
-        tb_data = xr.open_dataset('/neelin2020/RGMA_feature_mask/data_product/' + 
+        tb_data = xr.open_dataset('/neelin/RGMA_feature_mask/data_product/' + 
                                   '{}/MERGE-IR/Tb_MERGE_IR_{}_{}_hrly.compress.nc'.format(year,year,month))
         tb_data = tb_data.sel(time=timestamp_phase, method='nearest')
         tb_sub = tb_data.tb.sel(lon=slice(meanlon_era5-5,meanlon_era5+5), lat=slice(meanlat-5,meanlat+5)) 
@@ -245,7 +245,7 @@ def get_tb_estimates(track_number, phase_list):
         
         tb_sub_phase.append(tb_sub_xy)
         
-    tb_sub_phase_xr = xr.concat(tb_sub_phase, dim=pd.Index(['Init','Grow','Mature','Decay','End']
+    tb_sub_phase_xr = xr.concat(tb_sub_phase, dim=pd.Index(['CCS','Init','Grow','Mature','Decay','End']
                                                                    , name='mcs_phase')).drop_vars(['tracks','times'])
     
     return tb_sub_phase_xr
@@ -291,8 +291,8 @@ def BL_estimates_cal_phase(T, q, sp, T2m, q2m):
                 T_at_sf = T2m.isel(y=idx_lat, x=idx_lon).values
                 q_at_sf = q2m.isel(y=idx_lat, x=idx_lon).values
 
-                T_above_sf = T.isel(latitude=idx_lat, longitude=idx_lon).sel(level=slice(100,int(sf_p))).values
-                q_above_sf = q.isel(latitude=idx_lat, longitude=idx_lon).sel(level=slice(100,int(sf_p))).values
+                T_above_sf = T.isel(y=idx_lat, x=idx_lon).sel(level=slice(100,int(sf_p))).values
+                q_above_sf = q.isel(y=idx_lat, x=idx_lon).sel(level=slice(100,int(sf_p))).values
 
                 # reconstruct T, q profile by adding surface quantities
                 T_1d = np.concatenate([np.array([T_at_sf]), np.flip(T_above_sf)])            
@@ -310,19 +310,19 @@ def BL_estimates_cal_phase(T, q, sp, T2m, q2m):
                 q_bl = q_1d_xr.sel(level=slice(int(sf_p), pbl_p))
                 T_bl = T_1d_xr.sel(level=slice(int(sf_p), pbl_p))
                 # 2. lower free troposphere, lt
-                q_lt = q_1d_xr.sel(level=slice(pbl_p,pbl_p-400))
-                T_lt = T_1d_xr.sel(level=slice(pbl_p,pbl_p-400))     
+                q_lt = q_1d_xr.sel(level=slice(pbl_p,500))
+                T_lt = T_1d_xr.sel(level=slice(pbl_p,500))     
 
                 # calculating layer-averaged thetae components
-                thetae_bl = -theta_e_calc(T_bl, q_bl).integrate('level')/(T_bl.level[0]-T_bl.level[-1]) # negative sign b.c. decreasing p
-                thetae_lt = -theta_e_calc(T_lt, q_lt).integrate('level')/(T_lt.level[0]-T_lt.level[-1])
+                thetae_bl = theta_e_calc(T_bl, q_bl).integrate('level')/(T_bl.level[0]-T_bl.level[-1]) # negative sign b.c. decreasing p
+                thetae_lt = theta_e_calc(T_lt, q_lt).integrate('level')/(T_lt.level[0]-T_lt.level[-1])
                 qsat_lt = qs_calc(T_lt)
-                thetae_sat_lt = -theta_e_calc(T_lt, qsat_lt).integrate('level')/(T_lt.level[0]-T_lt.level[-1]) 
+                thetae_sat_lt = theta_e_calc(T_lt, qsat_lt).integrate('level')/(T_lt.level[0]-T_lt.level[-1]) 
 
                 thetae_bl_list.append(thetae_bl.values)
                 thetae_lt_list.append(thetae_lt.values)
                 thetae_sat_lt_list.append(thetae_sat_lt.values)
-                
+               
             except:
                 
                 thetae_bl_list.append(np.nan)
@@ -343,7 +343,8 @@ def BL_estimates_cal_phase(T, q, sp, T2m, q2m):
                                coords = dict(y=(["y"], T.y.values),
                                            x=(["x"], T.x.values)))
     # calculate buoyancy estimates
-    delta_pl=400
+    # 2-d weighting parameters for pbl and lt
+    delta_pl=sp-100-500
     delta_pb=100
     wb=(delta_pb/delta_pl)*np.log((delta_pl+delta_pb)/delta_pb)
     wl=1-wb
@@ -377,7 +378,8 @@ def process_vars_env_writeout(i):
         meanlon_era5 = meanlon
 
     # get phase_list
-    phase_list = [data_non2mcs_complete.sel(tracks=track_number).idt_mcs_init.values,
+    phase_list = [data_non2mcs_complete.sel(tracks=track_number).idt_ccs_init.values,
+                  data_non2mcs_complete.sel(tracks=track_number).idt_mcs_init.values,
                   data_non2mcs_complete.sel(tracks=track_number).idt_mcs_grow.values,
                   data_non2mcs_complete.sel(tracks=track_number).idt_mcs_mature.values,
                   data_non2mcs_complete.sel(tracks=track_number).idt_mcs_decay.values,
@@ -431,11 +433,12 @@ if __name__ == '__main__':
     opt_continue = str(sys.argv[2])
 
     # data directoies
-    dir_mcs_track = Path('/neelin2020/mcs_flextrkr/mcs_stats/mcs_tracks_non2mcs')
-    dir_era5 = Path('/neelin2020/ERA-5/NC_FILES/')
-    data_non2mcs_complete = xr.open_dataset(dir_mcs_track / 'mcs_tracks_non2mcs_{}.tropics30NS.nc'.format(year))
+    dir_mcs_track = Path('/scratch/wmtsai/temp_mcs/mcs_stats/mcs_tracks_non2mcs')
+    dir_era5 = Path('/neelin/ERA-5/NC_FILES/')
+    data_non2mcs_complete = xr.open_dataset(dir_mcs_track / 'mcs_tracks_non2mcs_{}.tropics30NS.extend.nc'.format(year))
 
-    out_dir = Path('/neelin2020/mcs_flextrkr/mcs_stats/envs_track/{}/tropics'.format(year))
+#    out_dir = Path('/neelin2020/mcs_flextrkr/mcs_stats/envs_track/{}/tropics'.format(year))
+    out_dir = Path('/scratch/wmtsai/temp_mcs/mcs_stats/envs_track/{}/tropics_extend/'.format(year))
     if out_dir.exists() == False:
         os.system('mkdir -p {}'.format(out_dir))
 
@@ -446,7 +449,7 @@ if __name__ == '__main__':
         files = sorted(list(out_dir.glob('*.nc')))
         track_exist = [] # available mcs_envs
         for file in files:
-            track_exist.append(int(file.name[-8:-3]))
+            track_exist.append(int(file.name[-11:-6]))
         tracks_input = np.setdiff1d(tracks_all, np.asarray(track_exist))
         print('Tracks processed: {}/{}'.format(len(track_exist), len(tracks_all)))
         print('Tracks remained: {}'.format(len(tracks_input)))
@@ -456,8 +459,8 @@ if __name__ == '__main__':
 
         pool.close()
         pool.join()
- 
-    else:
+
+    elif opt_continue == 'new':
         
         tracks_all = data_non2mcs_complete.tracks.values
 
@@ -468,4 +471,10 @@ if __name__ == '__main__':
         pool.close()
         pool.join()
 
+    elif opt_continue == 'single':
+
+        track_number = 84        
+        print("prcessing single track: {}".format(track_number))
+
+        process_vars_env_writeout(track_number)
 
