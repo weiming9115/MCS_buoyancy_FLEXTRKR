@@ -13,38 +13,35 @@ def data_tracks_add_LSflag(data_tracks):
     """
     add landsea flag
     """
-    
+
     lsflag_array = np.zeros((len(data_tracks.tracks),len(data_tracks.times)))*np.nan
     # ERA-5 lat-lon coordinate, 0.25-deg.
     data_lsmask = xr.open_dataset('/neelin2020/RGMA_feature_mask/ERA5_LandSeaMask_regrid.nc4')
     landseamask = data_lsmask.landseamask
-    lon_grids = landseamask.longitude.values 
-    lat_grids = landseamask.latitude.values 
-    
+
     for (n,track) in enumerate(data_tracks.tracks.values):
 
         meanlon = data_tracks.sel(tracks=track).meanlon.values
         meanlat = data_tracks.sel(tracks=track).meanlat.values
-        
+
         for t,(lon, lat) in enumerate(zip(meanlon, meanlat)):
-            
-            if np.isnan(lon) == 0: # not NaN 
-            
+
+            if np.isnan(lon) == 0: # not NaN
+
                 if (lon < 0):
                     lon = lon + 360 # converting to 0-360
-            
-                idx = np.argmin(abs(lon-lon_grids))
-                idy = np.argmin(abs(lat-lat_grids))
+                
+                landsea_flag = landseamask.sel(longitude=lon, latitude=lat, method='nearest').values
 
-                if landseamask[idx,idy].values <= 0: # land area (longitude, latitude)
-                    lsflag_array[n,t] = 1
-                else:
+                if landsea_flag == 100: # ocean area (longitude, latitude)
                     lsflag_array[n,t] = 0
-    
+                else: # land area
+                    lsflag_array[n,t] = 1
+                    
     # write a new variable
     data_tracks['landsea_flag'] = data_tracks.meanlon*0 + lsflag_array
     data_tracks['landsea_flag'] = data_tracks['landsea_flag'].assign_attrs(units="0 = ocean; 1 = land", description="landsea flag")
-    
+
     return data_tracks
 
 ########################## Main Code ################################
@@ -58,16 +55,16 @@ if __name__ == '__main__':
     # read data
     data_track = xr.open_dataset(dir_mcs_track / 'mcs_tracks_final_extc_{}0101.0000_{}0101.0000.nc'.format(year,year+1))
                                  
-    # convection over the tropics [170W-170E, 30S-30N], escape the periodicity
+    # convection over the tropics [30S-30N]
     meanlat = data_track.meanlat.sel(times=0)
     idx_lat = meanlat.where((meanlat > -30) & (meanlat < 30)).dropna(dim='tracks').tracks
     meanlon = data_track.meanlon.sel(times=0)
-    idx_lon = meanlon.where((meanlon > -170) & (meanlon < 170)).dropna(dim='tracks').tracks
+    idx_lon = meanlon.where((meanlon > -180) & (meanlon < 180)).dropna(dim='tracks').tracks
     idx_reg = np.intersect1d(idx_lat, idx_lon) # tracks starting in the selected region
 
     data_sub = data_track.sel(tracks=idx_reg)
 
-    ############## non2mcs options: CCS > 3hrs; MCS duration > 5 hrs                              
+    ############## non2mcs options: CCS for at least 3hrs; MCS duration >= 5 hrs                              
     nonmcs_hours = data_sub.mcs_status.sel(times=[0,1,2]).sum(dim='times') 
     mcs_duration = data_sub.mcs_duration
     idx = np.where(np.logical_and(nonmcs_hours == 0, mcs_duration >=5))[0]
@@ -94,7 +91,7 @@ if __name__ == '__main__':
 
         if (cond1 & cond2 & cond3 & cond4):
         
-            idt_ccs_init = 0 # start of CCS        
+            idt_ccs_init = 0 # start as CCS        
             idt_mcs_grow = idt_mcs_init + (idt_mcs_mature - idt_mcs_init)//2
             idt_mcs_decay = idt_mcs_mature + (idt_mcs_end - idt_mcs_mature)//2
 
@@ -122,5 +119,5 @@ if __name__ == '__main__':
 
     # save merged dataset into the directory
     dir_out = Path('/scratch/wmtsai/temp_mcs/mcs_stats/mcs_tracks_non2mcs')
-    ds_tracks_merged_flag.to_netcdf(dir_out / 'mcs_tracks_non2mcs_{}.tropics30NS.extend.nc'.format(year))
+    ds_tracks_merged_flag.to_netcdf(dir_out / 'mcs_tracks_non2mcs_{}.tropics30NS.full.nc'.format(year))
 

@@ -9,4 +9,4 @@ python mcs_non2mcs_tracks_writeout.py 2006 &
 python mcs_non2mcs_tracks_writeout.py 2007 &
 python mcs_non2mcs_tracks_writeout.py 2008 &
 python mcs_non2mcs_tracks_writeout.py 2009 &
-#python mcs_non2mcs_tracks_writeout.py 2019 &
+python mcs_non2mcs_tracks_writeout.py 2010 &

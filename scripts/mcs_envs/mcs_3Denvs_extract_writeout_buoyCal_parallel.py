@@ -22,7 +22,7 @@ from metpy.calc import thermo
 from metpy.units import units
 
 # importing theta_calc module
-sys.path.append('/neelin/mcs_flextrkr/scripts/modules') 
+sys.path.append('/neelin2020/mcs_flextrkr/scripts/modules') 
 from theta_e_calc_mod import *
 
 import warnings
@@ -44,7 +44,7 @@ def get_mcs_mask(track_number, phase_list):
         day = timestamp_str[8:10]
         hour = timestamp_str[11:13]
 
-        mask_data = xr.open_dataset('/neelin/mcs_flextrkr/{}0101.0000_{}0101.0000/mcstrack_{}{}{}_{}30.nc'.format(year
+        mask_data = xr.open_dataset('/neelin2020/mcs_flextrkr/{}0101.0000_{}0101.0000/mcstrack_{}{}{}_{}30.nc'.format(year
                                                                                 ,int(year)+1,year,month,day,hour))
         mcsnumber = data_non2mcs_complete.sel(tracks=track_number).tracks.values
         mask_sub = mask_data.cloudtracknumber_nomergesplit.isel(time=0)
@@ -102,7 +102,7 @@ def get_pr_estimates(track_number, phase_list):
         pr_sub_xy = pr_sub_xy.swap_dims({'longitude':'x', 'latitude': 'y'}).drop(['time','longitude','latitude'])
         
         # 2. get GPM-IMERG 
-        gpm_data = xr.open_dataset('/neelin/RGMA_feature_mask/GPM_ncfiles_{}/GPM_IMERGE_V06_{}{}{}_{}00.nc'.format(
+        gpm_data = xr.open_dataset('/neelin2020/RGMA_feature_mask/GPM_ncfiles_{}/GPM_IMERGE_V06_{}{}{}_{}00.nc'.format(
                                     year, year, month, day, hour))
         gpm_data = gpm_data.sel(time=timestamp_phase, method='nearest')
         gpm_sub = gpm_data.precipitationCal.sel(lon=slice(meanlon-5,meanlon+5), lat=slice(meanlat-5,meanlat+5))
@@ -232,7 +232,7 @@ def get_tb_estimates(track_number, phase_list):
         hour = timestamp_str[11:13]
         
         # 1. get regridded MERGE-IR 0.25-deg
-        tb_data = xr.open_dataset('/neelin/RGMA_feature_mask/data_product/' + 
+        tb_data = xr.open_dataset('/neelin2020/RGMA_feature_mask/data_product/' + 
                                   '{}/MERGE-IR/Tb_MERGE_IR_{}_{}_hrly.compress.nc'.format(year,year,month))
         tb_data = tb_data.sel(time=timestamp_phase, method='nearest')
         tb_sub = tb_data.tb.sel(lon=slice(meanlon_era5-5,meanlon_era5+5), lat=slice(meanlat-5,meanlat+5)) 
@@ -434,7 +434,7 @@ if __name__ == '__main__':
 
     # data directoies
     dir_mcs_track = Path('/scratch/wmtsai/temp_mcs/mcs_stats/mcs_tracks_non2mcs')
-    dir_era5 = Path('/neelin/ERA-5/NC_FILES/')
+    dir_era5 = Path('/neelin2020/ERA-5/NC_FILES/')
     data_non2mcs_complete = xr.open_dataset(dir_mcs_track / 'mcs_tracks_non2mcs_{}.tropics30NS.extend.nc'.format(year))
 
 #    out_dir = Path('/neelin2020/mcs_flextrkr/mcs_stats/envs_track/{}/tropics'.format(year))

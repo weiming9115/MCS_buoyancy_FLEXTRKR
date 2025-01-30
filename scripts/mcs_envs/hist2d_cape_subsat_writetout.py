@@ -10,7 +10,7 @@ warnings.filterwarnings('ignore')
 
 def get_files_HCC(year, corr_temp_cri, corr_space_cri):
     
-    data = xr.open_dataset(featstats_dir / 'featstats_tracks_non2mcs_{}.tropics30NS.nc'.format(year))
+    data = xr.open_dataset(featstats_dir / 'featstats_tracks_non2mcs_{}.tropics30NS.extend.nc'.format(year))
     
     corr_coeff_temp = data.corr_coeff_temp
     corr_coeff_space = data.corr_coeff_space.mean('mcs_phase')
@@ -27,7 +27,7 @@ def get_files_HCC(year, corr_temp_cri, corr_space_cri):
 
 def get_files_duration(year, duration_min, duration_max):
     
-    data = xr.open_dataset(featstats_dir / 'featstats_tracks_non2mcs_{}.tropics30NS.nc'.format(year))
+    data = xr.open_dataset(featstats_dir / 'featstats_tracks_non2mcs_{}.tropics30NS.extend.nc'.format(year))
 
     mcs_duration = data.mcs_duration
     
@@ -47,7 +47,7 @@ def get_files_landsea(year, sampling_opt='all'):
     sampling option to filter out MCS tracks by genesis locations: 'all', 'ocean', 'land'
     """
 
-    data = xr.open_dataset(mcs_dir / 'mcs_tracks_non2mcs_{}.tropics30NS.nc'.format(year))
+    data = xr.open_dataset(mcs_dir / 'mcs_tracks_non2mcs_{}.tropics30NS.extend.nc'.format(year))
 
     idt_mcs_init = data.idt_mcs_init
     landsea_flag = data.landsea_flag.sel(times=idt_mcs_init)
@@ -92,9 +92,9 @@ def BL_mcs_2dmap(fid_envs_track):
 def cape_subsat_hist(files, multi_year=False):
     
     # bins for BL_CAPE and BL_SUBSAT
-    bins_cape = np.linspace(-2,15,35)
-    bins_subsat = np.linspace(-2,15,35)
-    bins_samples = np.zeros((3, 5, len(bins_cape)-1, len(bins_subsat)-1)) # (area_type, mcs_phase, cape, subsat)
+    bins_cape = np.arange(-15,10,0.5)
+    bins_subsat = np.arange(-5,25,0.5)
+    bins_samples = np.zeros((3, 6, len(bins_cape)-1, len(bins_subsat)-1)) # (area_type, mcs_phase, cape, subsat)
     
     n = 0
     track_list = []
@@ -107,10 +107,11 @@ def cape_subsat_hist(files, multi_year=False):
         
         (BL_TOT_mcs, BL_CAPE_mcs, BL_SUBSAT_mcs, BL_TOT_env, BL_CAPE_env, BL_SUBSAT_env) = BL_mcs_2dmap(file)
 
-        for p, phase in enumerate(["Init", "Grow", "Mature", "Decay", "End"]):
+        for p, phase in enumerate(["CCS","Init", "Grow", "Mature", "Decay", "End"]):
 
             # parameters converting the unit from (m/s^2) to (Kelvin)
-            delta_pl=400
+            sp = xr.open_dataset(file).SP
+            delta_pl=sp-100-400
             delta_pb=100
             wb=(delta_pb/delta_pl)*np.log((delta_pl+delta_pb)/delta_pb)
             wl=1-wb
@@ -152,14 +153,14 @@ def cape_subsat_hist(files, multi_year=False):
                     bins_samples[1,p,i,j] += len(idx_com)
                     
             # ===== for 5-deg box averaged BL meatures, including MCS / non-MCS grids
-            BL_CAPE_phase_mean = (BL_CAPE_mcs.fillna(0) + BL_CAPE_env.fillna(0)).sel(mcs_phase=phase, x=slice(15,25),
-                                  y=slice(15,25)).mean(('x','y'))
+            BL_CAPE_phase_mean = (BL_CAPE_mcs.fillna(0) + BL_CAPE_env.fillna(0)).sel(mcs_phase=phase, x=slice(14,26),
+                                  y=slice(14,26)).mean(('x','y'))
             BL_CAPE_phase_mean = (340*3)/9.81/wb*BL_CAPE_phase_mean
-            BL_SUBSAT_phase_mean = (BL_SUBSAT_mcs.fillna(0) + BL_SUBSAT_env.fillna(0)).sel(mcs_phase=phase, x=slice(15,25),
-                                  y=slice(15,25)).mean(('x','y'))
+            BL_SUBSAT_phase_mean = (BL_SUBSAT_mcs.fillna(0) + BL_SUBSAT_env.fillna(0)).sel(mcs_phase=phase, x=slice(14,26),
+                                  y=slice(14,26)).mean(('x','y'))
             BL_SUBSAT_phase_mean = (340*3)/9.81/wl*BL_SUBSAT_phase_mean
         
-            # get 1-D CAPE and SUBSAT values associated with the environment
+            # get  CAPE and SUBSAT 5-deg mean
             cape_1d = BL_CAPE_phase_mean.values.ravel()
             subsat_1d = BL_SUBSAT_phase_mean.values.ravel()
 
@@ -176,7 +177,7 @@ def cape_subsat_hist(files, multi_year=False):
         ds_bins = xr.Dataset(data_vars = dict(samples = (['area_type','phase','bins_cape','bins_subsat'], bins_samples)),
                  coords = dict(tracks = track_list,
                                area_type = (['area_type'],['mcs','env','amean']),
-                               phase = (['phase'], ['Initial', 'Grow', 'Mature', 'Decay', 'End']),
+                               phase = (['phase'], ['CCS','Initial', 'Grow', 'Mature', 'Decay', 'End']),
                                bins_cape = (['bins_cape'], bins_cape[:-1]),
                                bins_subsat = (['bins_subsat'], bins_subsat[:-1])),
                  attrs = dict(description = 'cape-subsat histogram. amean = 5-deg average'))
@@ -184,10 +185,10 @@ def cape_subsat_hist(files, multi_year=False):
         ds_bins = xr.Dataset(data_vars = dict(samples = (['area_type','phase','bins_cape','bins_subsat'], bins_samples)),
                  coords = dict(tracks = np.arange(n),
                                area_type = (['area_type'],['mcs','env','amean']),
-                               phase = (['phase'], ['Initial', 'Grow', 'Mature', 'Decay', 'End']),
+                               phase = (['phase'], ['CCS','Initial', 'Grow', 'Mature', 'Decay', 'End']),
                                bins_cape = (['bins_cape'], bins_cape[:-1]),
                                bins_subsat = (['bins_subsat'], bins_subsat[:-1])),
-                 attrs = dict(description = 'cape-subsat histogram. amean = 5-deg average'))
+                 attrs = dict(description = 'cape-subsat histogram. amean = 3-deg average'))
     
     return ds_bins
 
@@ -197,8 +198,8 @@ if __name__ == '__main__':
     year = sys.argv[1]
 
     ########  parameters for filtering MCS tracks  ########
-    corr_temp_cri = 0. # temporal correlation between the mean values of ERA-5 and GPM precip during the evolution
-    corr_space_cri = 0. # mean spatial correlation between ERA-5 and GPM precip. 2-D maps during the evolution
+    corr_temp_cri = -999. # temporal correlation between the mean values of ERA-5 and GPM precip during the evolution
+    corr_space_cri = -999. # mean spatial correlation between ERA-5 and GPM precip. 2-D maps during the evolution
     sampling_opt = 'land' # MCS geolocation: 'all','ocean','land'
 
     ######################################################33
@@ -210,7 +211,7 @@ if __name__ == '__main__':
 
     mcs_dir = Path('/scratch/wmtsai/temp_mcs/mcs_stats/mcs_tracks_non2mcs/')
     featstats_dir = Path('/scratch/wmtsai/temp_mcs/mcs_stats/mcs_tracks_non2mcs/tracks_area_mean/')
-    dir_envs_track = Path('/scratch/wmtsai/temp_mcs/mcs_stats/envs_track/{}/tropics'.format(year))
+    dir_envs_track = Path('/scratch/wmtsai/temp_mcs/mcs_stats/envs_track/{}/tropics_extend'.format(year))
 
     data_bins_merged = []
     for (dmin, dmax, duration_type) in zip([5,6,12,18,24],[6,12,18,24,72],
@@ -233,6 +234,6 @@ if __name__ == '__main__':
 
     data_bins_duration = xr.concat(data_bins_merged, pd.Index(['SL','ML','LL','UL','UUL'], name='duration_type'))
 
-    out_dir = Path('/scratch/wmtsai/temp_mcs/output_stats')
-    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.5deg.nc'.format(year,sampling_opt))
-    print('hist2d_cape_subsat_dtype.{}.{}.5deg.nc'.format(year,sampling_opt))
+    out_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/cape_subsat_hist')
+    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.3deg.alltracks.nc'.format(year,sampling_opt))
+    print('hist2d_cape_subsat_dtype.{}.{}.3deg.alltracks.nc'.format(year,sampling_opt))

@@ -1,4 +1,5 @@
 #!/bin/bash
 
-cp -r /neelin/mcs_flextrkr/notebooks .
-cp -r /neelin/mcs_flextrkr/scripts .
+#cp -r /neelin2020/mcs_flextrkr/notebooks ./
+rsync -av /scratch/wmtsai/temp_mcs/scripts ./
+rsync -av /scratch/wmtsai/temp_mcs/notebooks_new ./
