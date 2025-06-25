@@ -72,10 +72,10 @@ def BL_mcs_2dmap(data_merged_phase):
 def cape_subsat_hist(data_merged_phase):
     
     # bins for BL_CAPE and BL_SUBSAT
-    bins_cape = np.arange(-15,10,0.5)
-    bins_subsat = np.arange(-5,25,0.5)
+    bins_cape = np.arange(-15,10,0.25)
+    bins_subsat = np.arange(-5,25,0.25)
     bins_samples = np.zeros((3, 6, len(bins_cape)-1, len(bins_subsat)-1)) # (area_type, mcs_phase, cape, subsat)
-    omega_ltmean_sum = np.copy(bins_samples)
+    prec_gpm_sum = np.copy(bins_samples)
         
     data_BLenvmcs_phase = BL_mcs_2dmap(data_merged_phase)
 
@@ -90,13 +90,10 @@ def cape_subsat_hist(data_merged_phase):
         # get 1-D CAPE and SUBSAT values associated with MCS from all tracks
         cape_1d = BL_CAPE_phase_mcs.values.ravel()
         subsat_1d = BL_SUBSAT_phase_mcs.values.ravel()
-        omega_ltmean = data_merged_phase.omega_ltmean.sel(mcs_phase=phase)
+        prec = data_merged_phase.mtpr.sel(mcs_phase=phase).fillna(0)*3600 # converting from kg/m/s to mm/hr
         mcs_mask = data_merged_phase.cloudtracknumber_nomergesplit.sel(mcs_phase=phase).fillna(0)
-        omega_ltmean_mcs = omega_ltmean.where(mcs_mask > 0)
-        tmp = omega_ltmean_mcs.values.ravel()
-        omega_ltmean_1d = tmp[~np.isnan(tmp)]
-        cape_1d = cape_1d[~np.isnan(tmp)]
-        subsat_1d = subsat_1d[~np.isnan(tmp)]
+        prec_mcs = prec.where(mcs_mask > 0)
+        prec_1d = prec_mcs.values.ravel()
 
         for i in range(len(bins_cape)-1):
             idx = np.where(np.logical_and(cape_1d >= bins_cape[i], cape_1d < bins_cape[i+1]))[0]
@@ -105,7 +102,7 @@ def cape_subsat_hist(data_merged_phase):
 
                 idx_com = np.intersect1d(idx,idy)
                 bins_samples[0,p,i,j] += len(idx_com)
-                omega_ltmean_sum[0,p,i,j] += np.sum(omega_ltmean_1d[idx_com])
+                prec_gpm_sum[0,p,i,j] += np.sum(prec_1d[idx_com])
 
         # ===== for outside mcs (environment) ======
         BL_CAPE_phase_env = data_BLenvmcs_phase.BL_CAPE_env.sel(mcs_phase=phase) # 9.81*(wb*(thetae_bl-thetae_sat_lt)/thetae_sat_lt)
@@ -116,13 +113,10 @@ def cape_subsat_hist(data_merged_phase):
         # get 1-D CAPE and SUBSAT values associated with the environment
         cape_1d = BL_CAPE_phase_env.values.ravel()
         subsat_1d = BL_SUBSAT_phase_env.values.ravel()
-        omega_ltmean = data_merged_phase.omega_ltmean.sel(mcs_phase=phase)
+        prec = data_merged_phase.mtpr.sel(mcs_phase=phase).fillna(0)*3600
         mcs_mask = data_merged_phase.cloudtracknumber_nomergesplit.sel(mcs_phase=phase).fillna(0)
-        omega_ltmean_mcs = omega_ltmean.where(mcs_mask == 0)
-        tmp = omega_ltmean_mcs.values.ravel()
-        omega_ltmean_1d = tmp[~np.isnan(tmp)]
-        cape_1d = cape_1d[~np.isnan(tmp)]
-        subsat_1d = subsat_1d[~np.isnan(tmp)]
+        prec_mcs = prec.where(mcs_mask == 0)
+        prec_1d = prec_mcs.values.ravel()
 
         for i in range(len(bins_cape)-1):
             idx = np.where(np.logical_and(cape_1d >= bins_cape[i], cape_1d < bins_cape[i+1]))[0]
@@ -131,7 +125,7 @@ def cape_subsat_hist(data_merged_phase):
 
                 idx_com = np.intersect1d(idx,idy)
                 bins_samples[1,p,i,j] += len(idx_com)
-                omega_ltmean_sum[1,p,i,j] += np.sum(omega_ltmean_1d[idx_com])
+                prec_gpm_sum[1,p,i,j] += np.sum(prec_1d[idx_com])
                 
         # ===== for 3-deg box averaged BL meatures, including MCS / non-MCS grids
         BL_CAPE_phase_mean = (data_BLenvmcs_phase.BL_CAPE_mcs.fillna(0) + data_BLenvmcs_phase.BL_CAPE_env.fillna(0)).sel(mcs_phase=phase, x=slice(14,26),
@@ -144,12 +138,9 @@ def cape_subsat_hist(data_merged_phase):
         # get CAPE and SUBSAT 3-deg mean
         cape_1d = BL_CAPE_phase_mean.values.ravel()
         subsat_1d = BL_SUBSAT_phase_mean.values.ravel()
-        omega_ltmean = data_merged_phase.omega_ltmean.sel(mcs_phase=phase)
-        omega_ltmean_mean = omega_ltmean.sel(x=slice(14,26),y=slice(14,26)).mean(('x','y'))
-        tmp = omega_ltmean_mean.values.ravel()
-        omega_ltmean_1d = tmp[~np.isnan(tmp)]
-        cape_1d = cape_1d[~np.isnan(tmp)]
-        subsat_1d = subsat_1d[~np.isnan(tmp)]
+        prec = data_merged_phase.mtpr.sel(mcs_phase=phase).fillna(0)*3600
+        prec_mean = prec.sel(x=slice(14,26),y=slice(14,26)).mean(('x','y'))
+        prec_1d = prec_mean.values.ravel()
 
         for i in range(len(bins_cape)-1):
             idx = np.where(np.logical_and(cape_1d >= bins_cape[i], cape_1d < bins_cape[i+1]))[0]
@@ -158,10 +149,10 @@ def cape_subsat_hist(data_merged_phase):
 
                 idx_com = np.intersect1d(idx,idy)
                 bins_samples[2,p,i,j] += len(idx_com)
-                omega_ltmean_sum[2,p,i,j] += np.sum(omega_ltmean_1d[idx_com])
+                prec_gpm_sum[2,p,i,j] += np.sum(prec_1d[idx_com])
 
     ds_bins = xr.Dataset(data_vars = dict(samples = (['area_type','phase','bins_cape','bins_subsat'], bins_samples),
-                                          omega_ltmean_sum = (['area_type','phase','bins_cape','bins_subsat'], omega_ltmean_sum)),
+                                          prec_gpm_sum = (['area_type','phase','bins_cape','bins_subsat'], prec_gpm_sum)),
                          coords = dict(tracks = data_merged_phase.tracks.values,
                                        area_type = (['area_type'],['mcs','env','amean']),
                                        phase = (['phase'], ['CCS','Initial', 'Grow', 'Mature', 'Decay', 'End']),
@@ -185,14 +176,11 @@ if __name__ == '__main__':
 
     buoy_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/buoy_meregd_2001_2020/{}/environment_catalogs/VARS_derived'.format(year))
     mask_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/buoy_meregd_2001_2020/{}/environment_catalogs/VARS_2D'.format(year))
-    omega_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/buoy_meregd_2001_2020/{}/environment_catalogs/VARS_3D'.format(year))
+    prec_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/buoy_meregd_2001_2020/{}/environment_catalogs/VARS_2D'.format(year))
     data_buoy = xr.open_dataset(buoy_dir / 'MCS_FLEXTRKR_tropics_buoyancy.merged.nc')
-    data_mask = xr.open_dataset(mask_dir / 'MCS_FLEXTRKR_tropics_cloudtracknumber_nomergesplit.merged.nc').cloudtracknumber_nomergesplit
-    data_mask = data_mask.where(data_mask == data_mask.tracks + 1, 0)
-    data_omega = xr.open_dataset(omega_dir / 'MCS_FLEXTRKR_tropics_omega.merged.nc')
-    data_omega_ltmean = (data_omega.sel(level=850).w).rename('omega_ltmean')
-
-    data_merged_phase = xr.merge([data_buoy, data_mask, data_omega_ltmean], compat='override')  
+    data_mask = xr.open_dataset(mask_dir / 'MCS_FLEXTRKR_tropics_cloudtracknumber_nomergesplit.merged.nc').drop_vars(('lat','lon'))
+    data_prec = xr.open_dataset(prec_dir / 'MCS_FLEXTRKR_tropics_mpr.merged.nc').drop_vars(('lat','lon'))
+    data_merged_phase = xr.merge([data_buoy, data_mask, data_prec])  
     print('total number of tracks in {}: {}'.format(year, len(data_merged_phase.tracks)))
 
     data_bins_merged = []
@@ -218,5 +206,5 @@ if __name__ == '__main__':
     data_bins_duration = xr.concat(data_bins_merged, pd.Index(['SL','ML','LL','UL','UUL'], name='duration_type'))
 
     out_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/cape_subsat_hist')
-    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.omega850.full.nc'.format(year,sampling_opt))
-    print('hist2d_cape_subsat_dtype.{}.{}.omega850.full.nc'.format(year,sampling_opt))
+    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.precip.bins0.25.ERA5prec.nc'.format(year,sampling_opt))
+    print('hist2d_cape_subsat_dtype.{}.{}.3deg.precip.ERA5prec.nc'.format(year,sampling_opt))

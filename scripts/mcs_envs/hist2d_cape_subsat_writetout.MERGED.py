@@ -47,9 +47,18 @@ def BL_mcs_2dmap(data_merged_phase):
     BL_TOT = data_merged_phase.Buoy_TOT
     BL_CAPE = data_merged_phase.Buoy_CAPE
     BL_SUBSAT = data_merged_phase.Buoy_SUBSAT
-    
+   
     # BL associated with mcs / non-mcs grids
-    mcs_mask = data_merged_phase.cloudtracknumber_nomergesplit.fillna(0) # mask (track_number or 0)
+    cloudtrack = data_merged_phase.cloudtracknumber_nomergesplit.fillna(0) # mask (track_number or 0)
+    # update the mcsmask because all cloudtracknumbers in the 10-deg. box are saved
+    mcsmask = []
+    for track in cloudtrack.tracks:
+        tracknum = cloudtrack.sel(tracks=track)
+        tracknum = tracknum.where(tracknum == track+1).fillna(0)
+        mcsmask.append(tracknum)
+    # merge into one dataset
+    mcs_mask = xr.concat(mcsmask, dim='tracks')
+
     BL_TOT_mcs = BL_TOT.where(mcs_mask > 0).rename('BL_TOT_mcs')
     BL_CAPE_mcs = BL_CAPE.where(mcs_mask > 0).rename('BL_CAPE_mcs')
     BL_SUBSAT_mcs = BL_SUBSAT.where(mcs_mask > 0).rename('BL_SUBSAT_mcs')
@@ -63,8 +72,8 @@ def BL_mcs_2dmap(data_merged_phase):
 def cape_subsat_hist(data_merged_phase):
     
     # bins for BL_CAPE and BL_SUBSAT
-    bins_cape = np.arange(-15,10,0.5)
-    bins_subsat = np.arange(-5,25,0.5)
+    bins_cape = np.arange(-15,10,0.25)
+    bins_subsat = np.arange(-5,25,0.25)
     bins_samples = np.zeros((3, 6, len(bins_cape)-1, len(bins_subsat)-1)) # (area_type, mcs_phase, cape, subsat)
         
     data_BLenvmcs_phase = BL_mcs_2dmap(data_merged_phase)
@@ -107,15 +116,13 @@ def cape_subsat_hist(data_merged_phase):
                 idx_com = np.intersect1d(idx,idy)
                 bins_samples[1,p,i,j] += len(idx_com)
                 
-        # ===== for 3-deg box averaged BL meatures, including MCS / non-MCS grids
-        BL_CAPE_phase_mean = (data_BLenvmcs_phase.BL_CAPE_mcs.fillna(0) + data_BLenvmcs_phase.BL_CAPE_env.fillna(0)).sel(mcs_phase=phase, x=slice(14,26),
-                                y=slice(14,26)).mean(('x','y'))
+        # ===== for MCS-area averaged BL meatures
+        BL_CAPE_phase_mean = data_BLenvmcs_phase.BL_CAPE_mcs.sel(mcs_phase=phase).mean(('x','y'))
         BL_CAPE_phase_mean = (340*3/9.81)*BL_CAPE_phase_mean
-        BL_SUBSAT_phase_mean = (data_BLenvmcs_phase.BL_SUBSAT_mcs.fillna(0) + data_BLenvmcs_phase.BL_SUBSAT_env.fillna(0)).sel(mcs_phase=phase, x=slice(14,26),
-                                y=slice(14,26)).mean(('x','y'))
+        BL_SUBSAT_phase_mean = data_BLenvmcs_phase.BL_SUBSAT_mcs.sel(mcs_phase=phase).mean(('x','y'))
         BL_SUBSAT_phase_mean = (340*3/9.81)*BL_SUBSAT_phase_mean
     
-        # get CAPE and SUBSAT 3-deg mean
+        # get CAPE and SUBSAT MCS-area mean
         cape_1d = BL_CAPE_phase_mean.values.ravel()
         subsat_1d = BL_SUBSAT_phase_mean.values.ravel()
 
@@ -133,7 +140,7 @@ def cape_subsat_hist(data_merged_phase):
                                        phase = (['phase'], ['CCS','Initial', 'Grow', 'Mature', 'Decay', 'End']),
                                        bins_cape = (['bins_cape'], bins_cape[:-1]),
                                        bins_subsat = (['bins_subsat'], bins_subsat[:-1])),
-                         attrs = dict(description = 'cape-subsat histogram. amean = 3-deg average')
+                         attrs = dict(description = 'cape-subsat histogram. amean = MCS-area average')
                          )
     
     return ds_bins
@@ -180,5 +187,5 @@ if __name__ == '__main__':
     data_bins_duration = xr.concat(data_bins_merged, pd.Index(['SL','ML','LL','UL','UUL'], name='duration_type'))
 
     out_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/cape_subsat_hist')
-    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.3deg.full.nc'.format(year,sampling_opt))
-    print('hist2d_cape_subsat_dtype.{}.{}.3deg.full.nc'.format(year,sampling_opt))
+    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.3deg.correctedmcs.nc'.format(year,sampling_opt))
+    print('hist2d_cape_subsat_dtype.{}.{}.3deg.correctedmcs.nc'.format(year,sampling_opt))

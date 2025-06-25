@@ -47,9 +47,18 @@ def BL_mcs_2dmap(data_merged_phase):
     BL_TOT = data_merged_phase.Buoy_TOT
     BL_CAPE = data_merged_phase.Buoy_CAPE
     BL_SUBSAT = data_merged_phase.Buoy_SUBSAT
-    
+   
     # BL associated with mcs / non-mcs grids
-    mcs_mask = data_merged_phase.cloudtracknumber_nomergesplit.fillna(0) # mask (track_number or 0)
+    cloudtrack = data_merged_phase.cloudtracknumber_nomergesplit.fillna(0) # mask (track_number or 0)
+    # update the mcsmask because all cloudtracknumbers in the 10-deg. box are saved
+    mcsmask = []
+    for track in cloudtrack.tracks:
+        tracknum = cloudtrack.sel(tracks=track)
+        tracknum = tracknum.where(tracknum == track+1).fillna(0)
+        mcsmask.append(tracknum)
+    # merge into one dataset
+    mcs_mask = xr.concat(mcsmask, dim='tracks')
+
     BL_TOT_mcs = BL_TOT.where(mcs_mask > 0).rename('BL_TOT_mcs')
     BL_CAPE_mcs = BL_CAPE.where(mcs_mask > 0).rename('BL_CAPE_mcs')
     BL_SUBSAT_mcs = BL_SUBSAT.where(mcs_mask > 0).rename('BL_SUBSAT_mcs')
@@ -63,8 +72,8 @@ def BL_mcs_2dmap(data_merged_phase):
 def cape_subsat_hist(data_merged_phase):
     
     # bins for BL_CAPE and BL_SUBSAT
-    bins_cape = np.arange(-15,10,0.25)
-    bins_subsat = np.arange(-5,25,0.25)
+    bins_cape = np.arange(-15,10,0.5)
+    bins_subsat = np.arange(-5,25,0.5)
     bins_samples = np.zeros((3, 6, len(bins_cape)-1, len(bins_subsat)-1)) # (area_type, mcs_phase, cape, subsat)
     prec_gpm_sum = np.copy(bins_samples)
         
@@ -197,5 +206,5 @@ if __name__ == '__main__':
     data_bins_duration = xr.concat(data_bins_merged, pd.Index(['SL','ML','LL','UL','UUL'], name='duration_type'))
 
     out_dir = Path('/scratch/wmtsai/temp_mcs/output_stats/cape_subsat_hist')
-    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.precip.bins0.25.nc'.format(year,sampling_opt))
-    print('hist2d_cape_subsat_dtype.{}.{}.3deg.precip.nc'.format(year,sampling_opt))
+    data_bins_duration.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.{}.{}.precip.bins0.5.nc'.format(year,sampling_opt))
+    print('hist2d_cape_subsat_dtype.{}.{}.precip.bins0.5.nc'.format(year,sampling_opt))

@@ -25,8 +25,8 @@ buoy_dir = Path('/neelin2020/ERA-5_buoy/layer_thetae/')
 gpm_dir = Path('/neelin2020/RGMA_feature_mask/GPM_ncfiles_{}'.format(year))
 omega_dir = Path('/scratch/wmtsai/ERA-5/NC_FILES/{}'.format(year))
 
-bins_cape = np.arange(-15,10,0.25)
-bins_subsat = np.arange(-5,25,0.25)
+bins_cape = np.arange(-15,10,0.5)
+bins_subsat = np.arange(-5,25,0.5)
 samples = np.zeros((len(bins_cape)-1, len(bins_subsat)-1))
 omega_sum = np.copy(samples)
 prec_sum = np.copy(samples)
@@ -67,7 +67,7 @@ prec_gpm = data_gpm.precipitationCal.sel(time=data_buoy.time)
 
 data_omega = xr.open_dataset(omega_dir / 'era-5.omega.{}.{}.nc'.format(year,str(month).zfill(2))).sel(latitude=slice(30,-30))
 omega850 = data_omega.reindex(latitude=sorted(list(data_omega.latitude)))
-omega850 = omega850.sel(level=950).sel(time=data_buoy.time)
+omega850 = omega850.sel(level=400).sel(time=data_buoy.time)
 omega850 = omega850.rename({'latitude': 'lat', 'longitude': 'lon'})
 omega850 = omega850.interp(lon = data_buoy.lon, lat = data_buoy.lat)
 
@@ -106,6 +106,6 @@ ds_clim = xr.Dataset(data_vars = dict(samples = (['bins_cape','bins_subsat'], sa
                      coords = dict(bins_cape = (['bins_cape'], bins_cape[:-1]),
                                    bins_subsat = (['bins_subsat'],bins_subsat[:-1]))
                     )
-ds_clim.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.climatology.PrecOmega950.ocean.{}{}.full.nc'.format(year,str(month).zfill(2)))
+ds_clim.to_netcdf(out_dir / 'hist2d_cape_subsat_dtype.climatology.PrecOmega400.ocean.{}{}.full.bins0.5.nc'.format(year,str(month).zfill(2)))
 
-print('hist2d_cape_subsat_dtype.climatology.PrecOmega950.ocean.{}{}.full.nc ...completed'.format(year,str(month).zfill(2)))
+print('hist2d_cape_subsat_dtype.climatology.PrecOmega400.ocean.{}{}.full.bins0.5.nc ...completed'.format(year,str(month).zfill(2)))
