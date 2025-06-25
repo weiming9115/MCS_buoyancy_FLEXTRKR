@@ -1,2 +1,3 @@
 # MCS_buoyancy_FLEXTRKR
-backup scripts for MCS_buoyancy_FLEXTRKR project
+This repository contains scripts for analyses in Tsai et al. (2025, GRL, submitted) "Precipitation-buoyancy
+relationships in the life cycle of tropical mesoscale convective systems".
